@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from __future__ import print_function
-import picamera
 import ephem
 from datetime import date, datetime, tzinfo, timedelta
 from dateutil import tz
@@ -17,17 +16,17 @@ from PIL import Image
 DEBUG       = True
 RAM_DISK    = "/mnt/ramdisk"
 SLEEP       = 0 
-CP_CMD      = "( scp {0} pi-tlv@encoder:/home/pi-tlv && rm {0} ) &"
+CP_CMD      = "( scp {0} pi-tlv@encoder:/home/pi-tlv ; rm {0} ) &"
 TZ_Halifax  = 'America/Halifax'
 TZ          = tz.gettz(TZ_Halifax)
 SUN         = ephem.Sun()
-OFFSET_RISE = -40 # start N minutes earlier
-OFFSET_SET  = 40
+OFFSET_RISE = -35 # start N minutes earlier
+OFFSET_SET  = 35
 
 #Position coordinates for:
 #    1505 Barrington Street, Halifax, NS B3J, 44.644557, -63.572071
 
-position = ephem.Observer()
+position     = ephem.Observer()
 position.lat = '44.644557'
 position.lon = '-63.572071'
 position.elevation = 30.0
@@ -103,16 +102,19 @@ def timelapse(sunrise, sunset):
         @param sunrise datetime.datetime with start
         @param sunset  datetime.datetime with end
     """
+    import picamera
     with picamera.PiCamera() as camera:
         camera.resolution = (2592, 1944)
-        camera.exposure_mode = 'auto'
+    #    camera.exposure_mode = 'beach'
+        camera.awb_mode = 'cloudy'
         camera.rotation = 180
+
         camera.start_preview()
        
         for i, filename in enumerate(camera.capture_continuous(RAM_DISK + '/' + '{counter:06d}.jpg')):   
             time_now = datetime.now(TZ)
             if DEBUG:
-               print("timelapse: ", time_now, " - ", filename)
+                print("timelapse: ", time_now, " - ", filename)
             if sunrise <= time_now <= sunset:
 		crop_image(filename, 1920, 1080, 512, 384)
 		# Move file to destination
