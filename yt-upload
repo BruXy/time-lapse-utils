@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# youtube-upload --  https://github.com/tokland/youtube-upload 
+#
+
+INPUT=$1 
+
+if [ ! -f "$INPUT" ] ; then
+        echo "$0: Cannot open file '$INPUT'!" >&2
+        exit 1 
+fi
+
+# Remove extension '.mp4' and replace '_' with spaces.
+TITLE=$(basename $INPUT .mp4)
+TITLE=${TITLE//_/ }
+
+# Upload video
+youtube-upload --title "$TITLE" \
+        --description "Halifax harbour, Nova Scotia. One day timelapse video from sunrise to sunset." \
+        --tags="timelapse, halifax, sea, navy" \
+        --location=latitude=44.644557,longitude=-63.572071 \
+        --playlist="Halifax Harbour Timelapse Videos" \
+        $INPUT
