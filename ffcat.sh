@@ -3,13 +3,15 @@
 #
 #
 TMP_FILE=/tmp/.ffcat-$$.txt
+OVERWRITE='' 
 
 function print_help() {
 cat << EOF
 
 Usage:
-	$0 [file1 file2 file3... ] output
+	$0 [-y] [file1 file2 file3... ] output
 
+	-y ... Overwrite output file without asking
 EOF
 }
 
@@ -28,22 +30,30 @@ then
 	exit 1
 fi
 
+# Check if overwrite is invoked
+if [[ $1 == '-y' ]] 
+then
+	OVERWRITE='-y'
+	shift
+fi
+
 file_list=( $@ )
 last=${file_list[-1]}
-ifexist "$last"
+[ -z $OVERWRITE ] && ifexist "$last"
 
-# put file list
-for ((i = 0; i < $[${#file_list[@]} - 1]; i++))
+# Create a file list, do not include the last file (result)
+for i in ${file_list[*]} 
 do
-	filename="$PWD/${file_list[$i]}"
-	if [ -f $filename ] ; then
+	filename="$PWD/$i"
+	if [ -f $filename ] && [[ $i != $last ]]  ; then
 		echo "file '$filename'"
 	else
-		echo "$0: file '$filename' not found!" >&2
+		[ $i != $last ] && echo "$0: file '$filename' not found!" >&2
 	fi
 done > $TMP_FILE 
 
-ffmpeg -f concat -i $TMP_FILE -codec copy $last
+# Concatenate video files
+ffmpeg $OVERWRITE -f concat -i $TMP_FILE -codec copy $last
 
 rm -f $TMP_FILE
 
