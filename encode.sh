@@ -1,16 +1,7 @@
 #!/bin/bash
-# Read input files sequence
-START=$(ls *.jpg | head -n 1)
-if [ -z $START ] ; then
-	echo "No files to process, exiting..."
-	exit
-fi
-
-END=$(ls *.jpg | tail -n 1)
-# Remove extension, keep just a number
-START=${START%.jpg}
-END=${END%.jpg}
-# -----------------------------------------------------------------------------
+#
+# Author: Martin 'BruXy' Bruchanov, bruchy(at)gmail.com
+#
 
 ####################
 # Global variables #
@@ -18,40 +9,45 @@ END=${END%.jpg}
 
 FPS=25 # Output video frame per second rate
 TZ='America/Halifax'
-FFCAT=/usr/local/bin/ffcat.sh
+FFCAT=/usr/local/bin/ffcat.sh # script for concatenating of video files
 DATE=$(TZ=$TZ date +"%Y-%m-%d")
 FINAL=Halifax_Harbour_${DATE}.mp4
 OUTPUT_DIR=/home/pi-tlv/website
 
-# set 10-base because of leading zeros
-printf -v OUT "%s-%06d-%06d" $DATE  $[10#$START] $[10#$END]
+#-----------------------------------#
+# Move files to temporary directory #
+#-----------------------------------#
 
-#echo $START $END $OUT
+FIRST_FILE=$(ls ${DATE}*.jpg | head -n 1)
 
-# Move files to temporary directory
-mkdir $OUT
+if [ -z "$FIRST_FILE" ] ; then
+       echo "No files to process, exiting..."
+       exit
+fi
 
-for i in $(seq $START $END) 
-do
-	printf -v n '%06d.jpg' $i
-#	if [ -f $n ] ; then
-		mv $n $OUT/
-#	fi
-done
+TMP_DIR=${FIRST_FILE/%.jpg/} # also used as output filename
+mkdir $TMP_DIR
+mv ${DATE}*.jpg $TMP_DIR
+
+#----------------------------#
+# Encode images to MP4 video #
+#----------------------------#
 	
 #-vf scale=1280:720 \
 #-vf  "crop=1920:1080:512:384" \
 
-( cd $OUT
+( cd $TMP_DIR
   ffmpeg -r $FPS \
 	-pattern_type glob \
 	-i "*.jpg" \
 	-vcodec libx264 \
 	-crf 23 \
 	-pix_fmt yuv420p \
-	../${OUT}.mp4
-   rm -rf ../${OUT}
+	../${TMP_DIR}.mp4
 )
+
+# Erase temporary directory
+rm -rf ${TMP_DIR}
 
 # Join temporary files and publish
 $FFCAT -y ${DATE}*.mp4 $OUTPUT_DIR/$FINAL

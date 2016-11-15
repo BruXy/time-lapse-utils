@@ -20,8 +20,9 @@ CP_CMD      = "( scp {0} pi-tlv@encoder:/home/pi-tlv ; rm {0} ) &"
 TZ_Halifax  = 'America/Halifax'
 TZ          = tz.gettz(TZ_Halifax)
 SUN         = ephem.Sun()
-OFFSET_RISE = -35 # start N minutes earlier
-OFFSET_SET  = 35
+IMG_NAME    = '{timestamp:%Y-%m-%d-%H%M%S}.jpg'
+OFFSET_RISE = -40 # start N minutes earlier
+OFFSET_SET  = 40
 
 #Position coordinates for:
 #    1505 Barrington Street, Halifax, NS B3J, 44.644557, -63.572071
@@ -105,15 +106,15 @@ def timelapse(sunrise, sunset):
     import picamera
     with picamera.PiCamera() as camera:
         camera.resolution = (2592, 1944)
-    #    camera.exposure_mode = 'beach'
-        camera.awb_mode = 'cloudy'
+    #   camera.exposure_mode = 'beach'
+        camera.awb_mode = 'auto'
         camera.rotation = 180
 
         camera.start_preview()
        
-        for i, filename in enumerate(camera.capture_continuous(RAM_DISK + '/' + '{counter:06d}.jpg')):   
+        for i, filename in enumerate(camera.capture_continuous(RAM_DISK + '/' + IMG_NAME)):   
             time_now = datetime.now(TZ)
-            if DEBUG:
+            if DEBUG: 
                 print("timelapse: ", time_now, " - ", filename)
             if sunrise <= time_now <= sunset:
 		crop_image(filename, 1920, 1080, 512, 384)
