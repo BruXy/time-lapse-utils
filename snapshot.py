@@ -91,9 +91,15 @@ def sleep_until_sunrise():
 
 def crop_image(filename, w, h, x, y):
     """ Crop image in file 'filename' and save it with the same name. """
-    full_img = Image.open(filename)
+    try: 
+        full_img = Image.open(filename)
+    except:
+	print("ERROR: ", sys.exc_info()[0])
+	return False
+
     crop = full_img.crop((x, y, x+w, y+h))
     crop.save(filename, 'JPEG', quality = 80)
+    return True
 
 
 def timelapse(sunrise, sunset):
@@ -117,9 +123,9 @@ def timelapse(sunrise, sunset):
             if DEBUG: 
                 print("timelapse: ", time_now, " - ", filename)
             if sunrise <= time_now <= sunset:
-		crop_image(filename, 1920, 1080, 512, 384)
-		# Move file to destination
-                system(CP_CMD.format(filename))
+		if crop_image(filename, 1920, 1080, 512, 384):
+	  	    # Move file to destination
+                    system(CP_CMD.format(filename))
                 sleep(SLEEP)
             else:
                 camera.stop_preview()
