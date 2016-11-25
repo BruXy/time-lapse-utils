@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import ephem
+import sys
 from datetime import date, datetime, tzinfo, timedelta
 from dateutil import tz
 from time import strftime, sleep
@@ -90,16 +91,14 @@ def sleep_until_sunrise():
 
 
 def crop_image(filename, w, h, x, y):
-    """ Crop image in file 'filename' and save it with the same name. """
-    try: 
-        full_img = Image.open(filename)
-    except:
-	print("ERROR: ", sys.exc_info()[0])
-	return False
+    """ Crop image in file 'filename' and save it with the same name.
 
+        @param  x, y top left corner of cropping box
+	@param  w, h width and height of cropping box    
+    """
+    full_img = Image.open(filename)
     crop = full_img.crop((x, y, x+w, y+h))
     crop.save(filename, 'JPEG', quality = 80)
-    return True
 
 
 def timelapse(sunrise, sunset):
@@ -123,9 +122,9 @@ def timelapse(sunrise, sunset):
             if DEBUG: 
                 print("timelapse: ", time_now, " - ", filename)
             if sunrise <= time_now <= sunset:
-		if crop_image(filename, 1920, 1080, 512, 384):
-	  	    # Move file to destination
-                    system(CP_CMD.format(filename))
+		crop_image(filename, 1920, 1080, 512, 384)
+	  	# Move file to destination
+                system(CP_CMD.format(filename))
                 sleep(SLEEP)
             else:
                 camera.stop_preview()
@@ -144,8 +143,12 @@ while True:
     sunrise = utc2local(position.next_rising(SUN), TZ, OFFSET_RISE)
     sunset  = utc2local(position.next_setting(SUN), TZ, OFFSET_SET)
     
-    # Snap pictures between given times
-    timelapse(sunrise, sunset)
+    # Snap pictures between given times, if error restart automatically
+    try:
+        timelapse(sunrise, sunset)
+    except:
+        print("Unexpected error: ", sys.exc_info()[0])
+        continue
 
     # Sleep until tomorrow sunrise
     sleep_until_sunrise()
