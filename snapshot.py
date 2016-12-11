@@ -88,7 +88,7 @@ def sleep_until_sunrise():
         print("sleep_until_sunrise: '{}'".format(seconds))
     if seconds < 0 or seconds > 24*60*60:
         print("Invalid waiting time!")
-    quit(1)
+        quit(1)
     sleep(seconds)
 
 
