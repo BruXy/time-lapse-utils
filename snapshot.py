@@ -7,6 +7,8 @@ from dateutil import tz
 from time import strftime, sleep
 from os import system, remove
 from PIL import Image
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 
 # https://picamera.readthedocs.io/en/release-1.12/
 
@@ -16,7 +18,7 @@ from PIL import Image
 
 DEBUG       = True
 RAM_DISK    = "/mnt/ramdisk"
-SLEEP       = 0 
+SLEEP       = 0
 CP_CMD      = "( scp {0} pi-tlv@encoder:/home/pi-tlv ; rm {0} ) &"
 TZ_Halifax  = 'America/Halifax'
 TZ          = tz.gettz(TZ_Halifax)
@@ -38,7 +40,7 @@ position.elevation = 30.0
 #############
 
 def get_today(offset_days = 0):
-    """ Return today day in format YYYY/MM/DD. 
+    """ Return today day in format YYYY/MM/DD.
 
         @param: offset_days can set tommorow date with +1
     """
@@ -46,7 +48,7 @@ def get_today(offset_days = 0):
     today = today.strftime('%Y/%m/%d')
 
     if DEBUG:
-        print("get_today: '{}'".format(today)) 
+        print("get_today: '{}'".format(today))
 
     return today
 
@@ -65,12 +67,12 @@ def utc2local(ephem_time, time_zone, offset_minutes = 0):
     utc = ephem.Date(ephem_time).datetime().replace(tzinfo=tz.gettz('UTC'))
     local = utc.astimezone(TZ)
     local = local + timedelta(minutes = offset_minutes)
-    
+
     if DEBUG:
         print("utc2local: offset '{}'".format(offset_minutes))
         print("utc2local: utc    '{}'".format(utc))
         print("utc2local: local  '{}'".format(local))
- 
+
     return local
 
 
@@ -78,23 +80,23 @@ def sleep_until_sunrise():
     """Sleep the process until the next day sunrise. """
     position.date = get_today(+1) # TODO - detect if started after 00:00
     tmrw_sunrise = utc2local(position.next_rising(SUN), TZ, OFFSET_RISE)
-    seconds = tmrw_sunrise - datetime.now(TZ) 
+    seconds = tmrw_sunrise - datetime.now(TZ)
     seconds = int(seconds.total_seconds()) + 10
     if DEBUG:
-	print("sleep_until_sunrise: date = '{}'".format(position.date))
-	print("sleep_until_sunrise: tmrw_sunrise = '{}'".format(tmrw_sunrise))
+        print("sleep_until_sunrise: date = '{}'".format(position.date))
+        print("sleep_until_sunrise: tmrw_sunrise = '{}'".format(tmrw_sunrise))
         print("sleep_until_sunrise: '{}'".format(seconds))
     if seconds < 0 or seconds > 24*60*60:
-	print("Invalid waiting time!")
-	quit(1)
-    sleep(seconds) 
+        print("Invalid waiting time!")
+    quit(1)
+    sleep(seconds)
 
 
 def crop_image(filename, w, h, x, y):
     """ Crop image in file 'filename' and save it with the same name.
 
         @param  x, y top left corner of cropping box
-	@param  w, h width and height of cropping box    
+    @param  w, h width and height of cropping box
     """
     full_img = Image.open(filename)
     crop = full_img.crop((x, y, x+w, y+h))
@@ -103,7 +105,7 @@ def crop_image(filename, w, h, x, y):
 
 def timelapse(sunrise, sunset):
     """ Control RaspberryPi Camera, exit function when time
-        is out of daylight period. 
+        is out of daylight period.
 
         @param sunrise datetime.datetime with start
         @param sunset  datetime.datetime with end
@@ -116,21 +118,40 @@ def timelapse(sunrise, sunset):
         camera.rotation = 180
 
         camera.start_preview()
-       
-        for i, filename in enumerate(camera.capture_continuous(RAM_DISK + '/' + IMG_NAME)):   
+        print("Begin capture")    
+
+        for i, filename in enumerate(camera.capture_continuous(RAM_DISK + '/' + IMG_NAME)):
             time_now = datetime.now(TZ)
-            if DEBUG: 
+            if DEBUG:
                 print("timelapse: ", time_now, " - ", filename)
             if sunrise <= time_now <= sunset:
-		crop_image(filename, 1920, 1080, 512, 384)
-	  	# Move file to destination
+                crop_image(filename, 1920, 1080, 512, 384)
+                # Move file to destination
                 system(CP_CMD.format(filename))
                 sleep(SLEEP)
             else:
                 camera.stop_preview()
-		remove(filename)
+                remove(filename)
                 return
-                
+
+
+def erase_folder(folder):
+    """ Delete all files in given directory (usually RAM_DISK), when
+        full file-system happens, probably due to network error.
+
+        @param folder string with absolute path
+    """
+    for i in os.listdir(folder):
+        file = os.path.join(folder, i)
+        if DEBUG:
+            print("Erasing: ", file)
+        try:
+            os.unlink(file)
+        except Exception as e:
+            print(e)
+            continue
+
+
 ########
 # Main #
 ########
@@ -142,13 +163,23 @@ while True:
     # Compute sunrise and sunset times
     sunrise = utc2local(position.next_rising(SUN), TZ, OFFSET_RISE)
     sunset  = utc2local(position.next_setting(SUN), TZ, OFFSET_SET)
-    
+
     # Snap pictures between given times, if error restart automatically
     try:
         timelapse(sunrise, sunset)
-    except:
-        print("Unexpected error: ", sys.exc_info()[0])
-        continue
+    except BaseException as e:
+        err_msg = str(e)
+        # Error handler: During long-term operation of this script,
+        # following two problems has apeared randomly.
+        print("Unexpected error: ", err_msg)
+        if 'No space left on device' in err_msg:
+            erase_folder(RAM_DISK)
+            continue
+        elif 'Timed out waiting for capture to end' in err_msg:
+            sleep(10)
+            continue
+        else:
+            continue
 
     # Sleep until tomorrow sunrise
     sleep_until_sunrise()
