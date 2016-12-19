@@ -5,11 +5,8 @@ import sys
 from datetime import date, datetime, tzinfo, timedelta
 from dateutil import tz
 from time import strftime, sleep
-from os import system, remove
+from os import system, remove, listdir, path
 from PIL import Image
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
-
 # https://picamera.readthedocs.io/en/release-1.12/
 
 ####################
@@ -141,12 +138,12 @@ def erase_folder(folder):
 
         @param folder string with absolute path
     """
-    for i in os.listdir(folder):
-        file = os.path.join(folder, i)
+    for i in listdir(folder):
+        file = path.join(folder, i)
         if DEBUG:
             print("Erasing: ", file)
         try:
-            os.unlink(file)
+            remove(file)
         except Exception as e:
             print(e)
             continue
@@ -155,6 +152,10 @@ def erase_folder(folder):
 ########
 # Main #
 ########
+
+if DEBUG:
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
 
 while True:
     # Get today day
