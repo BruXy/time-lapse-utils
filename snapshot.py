@@ -165,6 +165,16 @@ while True:
     sunrise = utc2local(position.next_rising(SUN), TZ, OFFSET_RISE)
     sunset  = utc2local(position.next_setting(SUN), TZ, OFFSET_SET)
 
+    # Check correct sunset:
+    # Because of different timezone the sunset may appear before
+    # the sunrise and after TZ conversion the date will be a day
+    # before. In this case, the sunset will be  counted for the next
+    # day.
+    if sunset < sunrise:
+	print("Warning: Sunset date is not it future, correcting value!")		
+    	position.date = get_today(+1)
+    	sunset  = utc2local(position.next_setting(SUN), TZ, OFFSET_SET)
+
     # Snap pictures between given times, if error restart automatically
     try:
         timelapse(sunrise, sunset)
